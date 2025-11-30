@@ -8,8 +8,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authConfig);
-  if (!session || !session.user?.email) {
+  const session = await getServerSession(authConfig as any);
+  if (!session || !(session as any).user?.email) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
@@ -28,14 +28,14 @@ export async function POST(
   }
 
   // Check if user already rated
-  const existingRatingIndex = file.ratings.findIndex((r: any) => r.user === session.user?.email);
+  const existingRatingIndex = file.ratings.findIndex((r: any) => r.user === (session as any).user?.email);
 
   if (existingRatingIndex > -1) {
     // Update existing rating
     file.ratings[existingRatingIndex].stars = stars;
   } else {
     // Add new rating
-    file.ratings.push({ user: session.user.email, stars });
+    file.ratings.push({ user: (session as any).user.email, stars });
   }
 
   await file.save();

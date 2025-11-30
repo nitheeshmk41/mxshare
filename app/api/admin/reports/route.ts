@@ -7,8 +7,8 @@ import Reports from "@/lib/models/Reports";
 const ADMIN_EMAIL = "25mx336@psgtech.ac.in";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authConfig);
-  if (!session || session.user?.email !== ADMIN_EMAIL) {
+  const session = await getServerSession(authConfig as any);
+  if (!session || (session as any).user?.email !== ADMIN_EMAIL) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
   }
 

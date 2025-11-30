@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     const newAdmin = await Admins.create({
       email,
-      addedBy: session?.user?.email || "System",
+      addedBy: (session as any)?.user?.email || "System",
     });
 
     return NextResponse.json({ success: true, data: newAdmin });

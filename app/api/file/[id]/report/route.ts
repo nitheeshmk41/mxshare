@@ -10,8 +10,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await getServerSession(authConfig);
-  if (!session || !session.user?.email) {
+  const session = await getServerSession(authConfig as any);
+  if (!session || !(session as any).user?.email) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
@@ -31,14 +31,14 @@ export async function POST(
 
   const report = await Reports.create({
     fileId: id,
-    reporter: session.user.email,
+    reporter: (session as any).user.email,
     reason,
   });
 
   // Send email to admin
   await sendAdminEmail(
     `New File Report: ${file.title}`,
-    `User ${session.user.email} reported file "${file.title}" (ID: ${id}).\nReason: ${reason}\n\nCheck admin dashboard.`
+    `User ${(session as any).user.email} reported file "${file.title}" (ID: ${id}).\nReason: ${reason}\n\nCheck admin dashboard.`
   );
 
   return NextResponse.json({ success: true, data: report });

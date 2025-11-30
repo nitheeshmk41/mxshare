@@ -1,17 +1,21 @@
-import OpenAI from "openai";
 import { NextResponse } from "next/server";
-
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import { fetchAICompletion } from "@/lib/ai";
 
 export async function POST(req: Request) {
-  const { prompt } = await req.json();
+  try {
+    const { prompt } = await req.json();
 
-  const result = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [{ role: "user", content: prompt }]
-  });
+    if (!prompt) {
+      return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+    }
 
-  return NextResponse.json({
-    answer: result.choices[0].message.content
-  });
+    const answer = await fetchAICompletion([
+      { role: "user", content: prompt }
+    ]);
+
+    return NextResponse.json({ answer });
+  } catch (err: any) {
+    console.error("Validate API error:", err);
+    return NextResponse.json({ error: err.message || "Failed to validate" }, { status: 500 });
+  }
 }
