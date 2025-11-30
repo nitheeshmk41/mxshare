@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import Files from "@/lib/models/Files";
+import { getServerSession } from "next-auth";
+import { authConfig } from "@/lib/auth";
 
 export async function POST(req: Request, context: any) {
   try {
@@ -11,11 +13,14 @@ export async function POST(req: Request, context: any) {
 
     await db();
 
-    if (id) {
-      await Files.findByIdAndUpdate(id, {
-        $inc: { downloads: 1 },
-      });
-    }
+    if (!id) return NextResponse.json({ success: false, message: "Missing id" }, { status: 400 });
+
+    // require logged in user
+    const session = await getServerSession(authConfig as any);
+    if (!session) return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
+
+    // only count once per session is handled client-side via sessionStorage; server just increments
+    await Files.findByIdAndUpdate(id, { $inc: { downloads: 1 } });
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

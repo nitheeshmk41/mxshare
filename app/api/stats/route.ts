@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import Users from "@/lib/models/User";
 
 export async function GET() {
   await db();
@@ -8,13 +9,33 @@ export async function GET() {
   const mod = await import('@/lib/models/Files');
   const Files = (mod && (mod as any).default) || (mod as any);
 
-  const count = await Files.countDocuments();
-  const downloads = await Files.aggregate([
-    { $group: { _id: null, total: { $sum: "$downloads" } } }
+  const [fileCount, userCount, stats] = await Promise.all([
+    Files.countDocuments(),
+    Users.countDocuments(),
+    Files.aggregate([
+      { 
+        $group: { 
+          _id: null, 
+          totalDownloads: { $sum: "$downloads" },
+          totalViews: { $sum: "$views" }
+        } 
+      }
+    ])
   ]);
 
+  // Get top performers (most views + downloads weighted)
+  // We'll just sort by views for now as a simple metric
+  const topFiles = await Files.find({})
+    .sort({ views: -1, downloads: -1 })
+    .limit(3)
+    .select("title subject semester views downloads ratings")
+    .lean();
+
   return NextResponse.json({
-    fileCount: count,
-    totalDownloads: downloads[0]?.total || 0
+    fileCount,
+    userCount,
+    totalDownloads: stats[0]?.totalDownloads || 0,
+    totalViews: stats[0]?.totalViews || 0,
+    topFiles
   });
 }

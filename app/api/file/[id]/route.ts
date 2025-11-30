@@ -75,3 +75,67 @@ export async function GET(req: Request, context: any) {
     );
   }
 }
+
+import { getServerSession } from "next-auth";
+import { authConfig } from "@/lib/auth";
+import Users from "@/lib/models/User";
+import Notification from "@/lib/models/Notification";
+
+const ADMIN_EMAIL = "25mx336@psgtech.ac.in";
+
+export async function DELETE(req: Request, context: any) {
+  try {
+    const session = await getServerSession(authConfig as any);
+    const userRole = (session as any)?.user?.role;
+    
+    if (!session || userRole !== "admin") {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
+    }
+
+    const rawParams = context?.params;
+    const params = rawParams && typeof rawParams.then === "function" ? await rawParams : rawParams;
+    const id: string | undefined = params?.id;
+
+    if (!id) return NextResponse.json({ success: false, message: "ID required" }, { status: 400 });
+
+    await db();
+    const file = await Files.findById(id);
+    if (!file) {
+      return NextResponse.json({ success: false, message: "File not found" }, { status: 404 });
+    }
+
+    // Handle User Warning & Blocking
+    if (file.userEmail) {
+      const user = await Users.findOne({ email: file.userEmail });
+      if (user) {
+        user.warnings = (user.warnings || 0) + 1;
+        
+        let notifMessage = `Admin removed your file "${file.title}". Warning ${user.warnings}/3.`;
+        
+        if (user.warnings >= 3) {
+          const blockDays = 5;
+          const blockUntil = new Date();
+          blockUntil.setDate(blockUntil.getDate() + blockDays);
+          user.blockedUntil = blockUntil;
+          user.warnings = 0; // Reset warnings after block? Or keep them? Usually reset or keep accumulating. Let's reset for this cycle.
+          notifMessage += ` You have been blocked for ${blockDays} days due to multiple violations.`;
+        }
+
+        await user.save();
+
+        // Send Notification
+        await Notification.create({
+          recipientEmail: file.userEmail,
+          message: notifMessage,
+          type: "warning"
+        });
+      }
+    }
+
+    await Files.findByIdAndDelete(id);
+
+    return NextResponse.json({ success: true, message: "File deleted and user warned" });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}

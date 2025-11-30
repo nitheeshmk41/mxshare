@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import Files from "@/lib/models/Files";
 import db from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authConfig } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -23,13 +25,42 @@ export async function POST(req: Request) {
       );
     }
 
+    // try to get user from session
+    let uploaderName = "Anonymous";
+    let uploaderEmail = "";
+    try {
+      const session = await getServerSession(authConfig as any);
+      const email = (session as any)?.user?.email as string | undefined;
+      if (email) {
+        uploaderEmail = email;
+        // if email like local@domain, take local part as author
+        uploaderName = email.split("@")[0] || email;
+      }
+    } catch (e) {
+      // ignore session errors
+    }
+
+    // Parse resource links
+    const resourceLinks: string[] = [];
+    if (body.resourceLinks && typeof body.resourceLinks === "string") {
+      const links = body.resourceLinks
+        .split('\n')
+        .map((l: string) => l.trim())
+        .filter(Boolean);
+      resourceLinks.push(...links);
+    }
+
     const doc = {
       title: body.title.trim(),
       subject: body.subject?.trim() || "",
       semester: body.semester?.trim() || "",
       hints: body.hints?.trim() || "",
       driveUrl: body.driveUrl.trim(),
+      author: uploaderName,
+      authorEmail: uploaderEmail,
       downloads: 0,
+      resourceLinks,
+      aiDescription: body.hints?.trim() || "",
       createdAt: new Date(),
     };
 

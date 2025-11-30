@@ -1,8 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MXShare - File Sharing Platform
+
+A modern file sharing platform built with Next.js, featuring direct Google Drive integration, AI-powered descriptions, and real-time uploads.
+
+## Features
+
+- 🚀 **Direct Google Drive Upload** - Upload files directly to Google Drive from Next.js (no Google Apps Script needed)
+- 📊 **Real-time Progress** - See upload progress with live feedback
+- 🤖 **AI Descriptions** - Generate descriptions using AI
+- 🔒 **Secure Authentication** - NextAuth with Google OAuth
+- 📝 **Content Validation** - Automatic blocking of inappropriate content
+- 💬 **Comments & Ratings** - Users can comment and rate files
+- 📈 **Analytics** - Track views, downloads, and file statistics
+- 🎨 **Modern UI** - Clean, responsive design with dark mode
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18+ 
+- MongoDB database
+- Google Cloud Console project with Drive API enabled
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/nitheeshmk41/mxnotes.git
+cd mxshare
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up environment variables (see `.env` file):
+   - MongoDB connection
+   - Google OAuth credentials
+   - Google Drive API credentials (see `GOOGLE_DRIVE_SETUP.md`)
+   - OpenRouter API key for AI features
+
+4. Configure Google Drive authentication:
+   - Follow instructions in `GOOGLE_DRIVE_SETUP.md`
+   - Option 1: Service Account (recommended)
+   - Option 2: OAuth refresh token (use `node scripts/generate-refresh-token.js`)
+
+5. Run the development server:
 
 ```bash
 npm run dev

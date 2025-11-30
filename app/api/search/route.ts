@@ -32,12 +32,18 @@ export async function GET(req: Request) {
       if (doc) return NextResponse.json(doc);
     }
 
-    // --- Title search ---
-    const results = await Files.find(
-      q
-        ? { title: { $regex: q, $options: "i" } }
-        : {} // if empty query, return latest items
-    )
+    // --- Enhanced Search (Title, Subject, Hints) ---
+    const query = q
+      ? {
+          $or: [
+            { title: { $regex: q, $options: "i" } },
+            { subject: { $regex: q, $options: "i" } },
+            { hints: { $regex: q, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const results = await Files.find(query)
       .limit(20)
       .sort({ createdAt: -1 })
       .lean();
