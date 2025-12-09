@@ -81,25 +81,6 @@ import { authConfig } from "@/lib/auth";
 import Users from "@/lib/models/User";
 import Notification from "@/lib/models/Notification";
 
-const ADMIN_EMAIL = "25mx336@psgtech.ac.in";
-const BANNED_KEYWORDS = ["sex", "porn", "xxx", "18+", "nsfw", "nude", "erotic", "adult", "hardcore", "rape"];
-const BANNED_DOMAINS = ["xnxx", "xvideos", "pornhub", "redtube", "xhamster", "onlyfans", "brazzers", "porn"];
-
-function containsBanned(text: string) {
-  const lower = text.toLowerCase();
-  return BANNED_KEYWORDS.some((word) => lower.includes(word));
-}
-
-function isBannedDomain(link: string) {
-  try {
-    const url = new URL(link);
-    const host = url.hostname.toLowerCase();
-    return BANNED_DOMAINS.some((d) => host.includes(d));
-  } catch {
-    return false;
-  }
-}
-
 async function sendNotification(recipientEmail: string, message: string, type: "warning" | "info" = "info") {
   if (!recipientEmail) return;
   try {
@@ -129,9 +110,6 @@ function validateLinks(links: string[]) {
   for (const link of links) {
     if (!ensureHttp(link)) {
       return "Each link must start with http:// or https://";
-    }
-    if (containsBanned(link) || isBannedDomain(link)) {
-      return "Link blocked due to inappropriate content.";
     }
   }
   return null;
@@ -250,12 +228,6 @@ export async function PATCH(req: Request, context: any) {
     }
 
     // Content safety check across updated fields
-    const textBlob = [updates.title, updates.driveUrl, links.join(" ")].filter(Boolean).join(" ");
-    if (textBlob && containsBanned(textBlob)) {
-      await sendNotification(ADMIN_EMAIL, `Blocked edit with banned content on file ${file.title}`);
-      return NextResponse.json({ success: false, message: "Update blocked due to inappropriate content." }, { status: 400 });
-    }
-
     Object.assign(file, updates);
     await file.save();
 
