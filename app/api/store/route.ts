@@ -91,12 +91,19 @@ export async function POST(req: Request) {
             { status: 400 }
           );
         }
+        if (containsBanned(link) || isBannedDomain(link)) {
+          await notifyAdmin(`Blocked 18+ link: ${link}`);
+          return NextResponse.json(
+            { success: false, message: "Resource link blocked due to 18+ content." },
+            { status: 400 }
+          );
+        }
         resourceLinks.push(link);
       }
     }
 
     // Content safety check across text fields
-    const textBlob = [body.title, body.subject, body.hints, body.driveUrl]
+    const textBlob = [body.title, body.subject, body.hints, body.driveUrl, resourceLinks.join(" ")]
       .filter(Boolean)
       .join(" ");
     if (containsBanned(textBlob)) {

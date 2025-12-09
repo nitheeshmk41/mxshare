@@ -81,6 +81,25 @@ import { authConfig } from "@/lib/auth";
 import Users from "@/lib/models/User";
 import Notification from "@/lib/models/Notification";
 
+const ADMIN_EMAIL = process.env.ALERT_ADMIN_EMAIL || "25mx336@psgtech.ac.in";
+const BANNED_KEYWORDS = ["sex", "porn", "xxx", "18+", "nsfw", "nude", "erotic", "adult", "hardcore", "rape"];
+const BANNED_DOMAINS = ["xnxx", "xvideos", "pornhub", "redtube", "xhamster", "onlyfans", "brazzers", "porn"];
+
+function containsBanned(text: string) {
+  const lower = text.toLowerCase();
+  return BANNED_KEYWORDS.some((word) => lower.includes(word));
+}
+
+function isBannedDomain(link: string) {
+  try {
+    const url = new URL(link);
+    const host = url.hostname.toLowerCase();
+    return BANNED_DOMAINS.some((d) => host.includes(d));
+  } catch {
+    return false;
+  }
+}
+
 async function sendNotification(recipientEmail: string, message: string, type: "warning" | "info" = "info") {
   if (!recipientEmail) return;
   try {
@@ -224,10 +243,28 @@ export async function PATCH(req: Request, context: any) {
     if (links.length) {
       const err = validateLinks(links);
       if (err) return NextResponse.json({ success: false, message: err }, { status: 400 });
+      for (const link of links) {
+        if (containsBanned(link) || isBannedDomain(link)) {
+          await sendNotification(ADMIN_EMAIL, `Blocked edit with 18+ link on file ${file.title}`);
+          return NextResponse.json({ success: false, message: "Resource link blocked due to 18+ content." }, { status: 400 });
+        }
+        if (file.subject) {
+          const subj = String(file.subject).toLowerCase();
+          if (!link.toLowerCase().includes(subj)) {
+            return NextResponse.json({ success: false, message: "One or more links appear off-topic for the selected subject." }, { status: 400 });
+          }
+        }
+      }
       updates.resourceLinks = links;
     }
 
     // Content safety check across updated fields
+    const textBlob = [updates.title, updates.driveUrl, links.join(" ")].filter(Boolean).join(" ");
+    if (textBlob && containsBanned(textBlob)) {
+      await sendNotification(ADMIN_EMAIL, `Blocked edit with banned content on file ${file.title}`);
+      return NextResponse.json({ success: false, message: "Update blocked due to inappropriate content." }, { status: 400 });
+    }
+
     Object.assign(file, updates);
     await file.save();
 
