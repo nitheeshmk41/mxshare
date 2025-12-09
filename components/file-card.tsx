@@ -6,8 +6,13 @@ type File = {
   hints?: string;
   views?: number;
 };
+type Props = {
+  file: File;
+  showHints?: boolean;
+  compactMeta?: boolean;
+};
 
-export default function FileCard({ file }: { file: File }) {
+export default function FileCard({ file, showHints = true, compactMeta = false }: Props) {
   return (
     <a
       href={`/file/${file._id}`}
@@ -17,12 +22,12 @@ export default function FileCard({ file }: { file: File }) {
       <div className="flex-1">
         <h3 className="font-semibold text-lg md:text-xl">{file.title}</h3>
         <p className="text-sm text-muted-foreground mt-1 md:text-base">{file.subject} • Sem {file.semester}</p>
-        {file.hints && <p className="text-xs md:text-sm mt-3 text-muted-foreground">{file.hints}</p>}
+        {showHints && file.hints && <p className="text-xs md:text-sm mt-3 text-muted-foreground line-clamp-3">{file.hints}</p>}
       </div>
 
       <div className="mt-3 md:mt-0 md:ml-4 text-right text-sm text-muted-foreground">
-        <div className="hidden md:block">Views: {file.views ?? 0}</div>
-        <div className="block md:hidden">Views: {file.views ?? 0}</div>
+        <div className={compactMeta ? "" : "hidden md:block"}>Views: {file.views ?? 0}</div>
+        <div className={compactMeta ? "" : "block md:hidden"}>Views: {file.views ?? 0}</div>
       </div>
     </a>
   );

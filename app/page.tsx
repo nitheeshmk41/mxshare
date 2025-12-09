@@ -251,39 +251,69 @@ export default function Home() {
               </span>
             </h2>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              {topPerformers.map((f: any, index: number) => (
-                <div
-                  key={f._id}
-                  className="performer-card group relative rounded-2xl border border-border/70 bg-card/70 p-0.5 shadow-[0_20px_60px_rgba(15,23,42,0.7)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-3 hover:border-yellow-400/70 hover:scale-105 hover:rotate-1"
-                >
-                  {/* gradient edge */}
-                  <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-yellow-400/25 via-transparent to-amber-500/25" />
+              {topPerformers.map((f: any, index: number) => {
+                const ratings = Array.isArray(f.ratings) ? f.ratings : [];
+                const avg = ratings.length
+                  ? (ratings.reduce((s: number, r: any) => s + (r.stars || 0), 0) / ratings.length).toFixed(1)
+                  : "—";
+                const uploader = f.author || (f.authorEmail ? f.authorEmail.split("@")[0] : "Anonymous");
+                const uploaderEmail = f.authorEmail;
 
-                  {/* rank badge */}
-                  <div className="absolute -top-4 -right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full text-xl font-bold shadow-lg border border-black/20 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">
-                    {index === 0 && (
-                      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 text-white animate-pulse">
-                        1
-                      </div>
-                    )}
-                    {index === 1 && (
-                      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white">
-                        2
-                      </div>
-                    )}
-                    {index === 2 && (
-                      <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-500 text-white">
-                        3
-                      </div>
-                    )}
-                  </div>
+                return (
+                  <div
+                    key={f._id}
+                    className="performer-card group relative rounded-2xl border border-border/70 bg-card/70 p-0.5 shadow-[0_20px_60px_rgba(15,23,42,0.7)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-3 hover:border-yellow-400/70 hover:scale-105 hover:rotate-1"
+                  >
+                    <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-yellow-400/25 via-transparent to-amber-500/25" />
 
-                  {/* card content wrapper for hover scale */}
-                  <div className="relative rounded-2xl bg-card/90 p-4 transition-transform duration-300 group-hover:scale-[1.02]">
-                    <FileCard file={f} />
+                    <div className="absolute -top-4 -right-4 z-10 flex h-12 w-12 items-center justify-center rounded-full text-xl font-bold shadow-lg border border-black/20 group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">
+                      {index === 0 && (
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 text-white animate-pulse">
+                          1
+                        </div>
+                      )}
+                      {index === 1 && (
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white">
+                          2
+                        </div>
+                      )}
+                      {index === 2 && (
+                        <div className="flex h-full w-full items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-orange-500 text-white">
+                          3
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="relative rounded-2xl bg-card/90 p-5 transition-transform duration-300 group-hover:scale-[1.02] space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <a href={`/file/${f._id}`} className="text-lg font-semibold hover:underline">
+                            {f.title}
+                          </a>
+                          <p className="text-sm text-muted-foreground">{f.subject} • Sem {f.semester}</p>
+                          <p className="text-xs text-muted-foreground">Uploaded by {uploader}{uploaderEmail ? ` (${uploaderEmail})` : ""}</p>
+                        </div>
+                        <div className="text-right text-sm text-muted-foreground space-y-1">
+                          <div className="font-semibold text-foreground">⭐ {avg}</div>
+                          <div>Views: {f.views ?? 0}</div>
+                          <div>Downloads: {f.downloads ?? 0}</div>
+                        </div>
+                      </div>
+                      {ratings.length > 0 && (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <div className="h-1.5 w-full rounded-full bg-border/70 overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-yellow-400 via-amber-400 to-emerald-400"
+                              style={{ width: `${Math.min(Number(avg) * 20, 100)}%` }}
+                            />
+                          </div>
+                          <span className="min-w-[40px] text-right">{ratings.length} ratings</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -310,7 +340,7 @@ export default function Home() {
                 >
                   <div className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-sky-400/20 via-transparent to-primary/25" />
                   <div className="relative rounded-2xl bg-card/90 p-4 transition-transform duration-300 group-hover:scale-[1.02]">
-                    <FileCard file={f} />
+                    <FileCard file={f} showHints={false} compactMeta />
                   </div>
                 </div>
               ))}

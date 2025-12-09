@@ -28,7 +28,7 @@ export async function GET() {
   const topFiles = await Files.find({})
     .sort({ views: -1, downloads: -1 })
     .limit(3)
-    .select("title subject semester views downloads ratings")
+    .select("title subject semester views downloads ratings author authorEmail")
     .lean();
 
   return NextResponse.json({
