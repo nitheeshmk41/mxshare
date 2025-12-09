@@ -45,23 +45,23 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #f8fafc; /* Slate-50 for a soft grey shade */
+  --background: #f1f5f9; /* Slate-100 - better contrast than f8fafc */
   --foreground: #0f172a; /* Slate-900 for sharp text */
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #1e293b; /* Slate-800 - darker for better readability */
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #1e293b;
   --primary: #7c3aed; /* Keep the brand purple */
   --primary-foreground: #ffffff;
-  --secondary: #f1f5f9; /* Slate-100 */
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b; /* Slate-500 */
-  --accent: #f8fafc; /* Slate-50 */
-  --accent-foreground: #0f172a;
-  --destructive: #ef4444;
-  --border: #e2e8f0; /* Slate-200 */
-  --input: #e2e8f0;
+  --secondary: #e2e8f0; /* Slate-200 - more visible */
+  --secondary-foreground: #1e293b; /* Darker text */
+  --muted: #e2e8f0; /* Slate-200 - more contrast */
+  --muted-foreground: #475569; /* Slate-600 - darker for visibility */
+  --accent: #ddd6fe; /* Purple-200 - more visible accent */
+  --accent-foreground: #4c1d95; /* Purple-900 - dark purple text */
+  --destructive: #dc2626; /* Red-600 - slightly darker */
+  --border: #cbd5e1; /* Slate-300 - more visible borders */
+  --input: #e2e8f0; /* Slate-200 - visible input background */
   --ring: #7c3aed;
   --chart-1: #7c3aed;
   --chart-2: #06b6d4;
@@ -69,12 +69,12 @@
   --chart-4: #f59e0b;
   --chart-5: #ec4899;
   --sidebar: #f8fafc;
-  --sidebar-foreground: #0f172a;
+  --sidebar-foreground: #1e293b; /* Darker sidebar text */
   --sidebar-primary: #7c3aed;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
+  --sidebar-accent: #e2e8f0; /* More visible */
+  --sidebar-accent-foreground: #1e293b; /* Darker */
+  --sidebar-border: #cbd5e1; /* More visible borders */
   --sidebar-ring: #7c3aed;
 }
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Files from "@/lib/models/Files";
-import { fetchAICompletion } from "@/lib/ai";
+import { fetchAICompletion, cleanAIText } from "@/lib/ai";
 
 export async function GET(
   req: NextRequest,
@@ -37,10 +37,12 @@ Semester: ${file.semester}
 Hints/Notes: ${file.hints}
 Comments: ${file.comments.map((c: any) => c.text).join(" | ")}`;
 
-    const summary = await fetchAICompletion([
+    const summaryRaw = await fetchAICompletion([
       { role: "system", content: "You are a helpful assistant summarizing educational resources." },
       { role: "user", content: prompt },
     ], 300);
+
+    const summary = cleanAIText(summaryRaw);
 
     // Save summary to DB
     file.aiSummary = summary;

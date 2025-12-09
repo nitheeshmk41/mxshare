@@ -3,6 +3,42 @@ import Files from "@/lib/models/Files";
 import db from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authConfig } from "@/lib/auth";
+import Notification from "@/lib/models/Notification";
+
+const SUPER_ADMIN_EMAIL = process.env.ALERT_ADMIN_EMAIL || "25mx336@psgtech.ac.in";
+const BANNED_KEYWORDS = [
+  "sex", "porn", "xxx", "18+", "nsfw", "nude", "erotic", "adult", "hardcore", "rape",
+];
+const BANNED_DOMAINS = [
+  "xnxx", "xvideos", "pornhub", "redtube", "xhamster", "onlyfans", "brazzers", "porn",
+];
+
+function containsBanned(text: string) {
+  const lower = text.toLowerCase();
+  return BANNED_KEYWORDS.some((w) => lower.includes(w));
+}
+
+async function notifyAdmin(message: string) {
+  try {
+    await Notification.create({
+      recipientEmail: SUPER_ADMIN_EMAIL,
+      message,
+      type: "warning",
+    });
+  } catch (e) {
+    console.error("Failed to notify admin", e);
+  }
+}
+
+function isBannedDomain(link: string) {
+  try {
+    const url = new URL(link);
+    const host = url.hostname.toLowerCase();
+    return BANNED_DOMAINS.some((d) => host.includes(d));
+  } catch {
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -40,14 +76,56 @@ export async function POST(req: Request) {
       // ignore session errors
     }
 
-    // Parse resource links
+    // Parse resource links with validation
     const resourceLinks: string[] = [];
     if (body.resourceLinks && typeof body.resourceLinks === "string") {
       const links = body.resourceLinks
-        .split('\n')
+        .split("\n")
         .map((l: string) => l.trim())
         .filter(Boolean);
-      resourceLinks.push(...links);
+
+      for (const link of links) {
+        if (!/^https?:\/\//i.test(link)) {
+          return NextResponse.json(
+            { success: false, message: "Each resource link must start with http:// or https://" },
+            { status: 400 }
+          );
+        }
+        if (containsBanned(link) || isBannedDomain(link)) {
+          await notifyAdmin(`Blocked 18+ link: ${link}`);
+          return NextResponse.json(
+            { success: false, message: "Resource link blocked due to inappropriate content." },
+            { status: 400 }
+          );
+        }
+        resourceLinks.push(link);
+      }
+    }
+
+    // Content safety check across text fields
+    const textBlob = [body.title, body.subject, body.hints, body.driveUrl, resourceLinks.join(" ")]
+      .filter(Boolean)
+      .join(" ");
+    if (containsBanned(textBlob)) {
+      await notifyAdmin(`Blocked 18+ content in upload: ${body.title || "untitled"}`);
+      return NextResponse.json(
+        { success: false, message: "Upload blocked due to inappropriate content." },
+        { status: 400 }
+      );
+    }
+
+    // Topic consistency check for resource links
+    if (body.subject && resourceLinks.length) {
+      const subj = String(body.subject).toLowerCase();
+      for (const link of resourceLinks) {
+        const lower = link.toLowerCase();
+        if (!lower.includes(subj)) {
+          return NextResponse.json(
+            { success: false, message: "One or more links appear off-topic for the selected subject." },
+            { status: 400 }
+          );
+        }
+      }
     }
 
     const doc = {

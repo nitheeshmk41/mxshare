@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchAICompletion } from "@/lib/ai";
+import { fetchAICompletion, cleanAIText } from "@/lib/ai";
 
 export async function POST(req: Request) {
   try {
@@ -15,9 +15,11 @@ Requirements:
 - Format: Plain text (no markdown, no bullet points).
 - Style: Informative and student-friendly.`;
 
-    const description = await fetchAICompletion([
+    const descriptionRaw = await fetchAICompletion([
       { role: "user", content: prompt }
     ], 150);
+
+    const description = cleanAIText(descriptionRaw);
 
     return NextResponse.json({ success: true, description });
   } catch (error: any) {

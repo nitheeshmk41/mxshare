@@ -1,8 +1,24 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import stream from 'stream';
+import db from '@/lib/db';
+import Notification from '@/lib/models/Notification';
 
 export const runtime = 'nodejs';
+
+const SUPER_ADMIN_EMAIL = process.env.ALERT_ADMIN_EMAIL || '25mx336@psgtech.ac.in';
+const BANNED_KEYWORDS = [
+  'sex','porn','xxx','18+','nsfw','nude','erotic','adult','hardcore','rape','xnxx','xvideos','pornhub',
+];
+
+async function notifyAdmin(message: string) {
+  try {
+    await db();
+    await Notification.create({ recipientEmail: SUPER_ADMIN_EMAIL, message, type: 'warning' });
+  } catch (e) {
+    console.error('Failed to notify admin', e);
+  }
+}
 
 async function bufferToStream(buffer: Buffer) {
   const readable = new stream.PassThrough();
@@ -18,6 +34,17 @@ export async function POST(req: Request) {
 
     const filename = req.headers.get('x-filename') || `upload-${Date.now()}`;
     const mimetype = req.headers.get('x-mimetype') || 'application/octet-stream';
+
+    // Basic content scan (first 512KB) for banned keywords
+    const sample = buf.subarray(0, 512_000).toString('utf8').toLowerCase();
+    const hit = BANNED_KEYWORDS.find((w) => sample.includes(w));
+    if (hit) {
+      await notifyAdmin(`Blocked upload containing banned content: keyword "${hit}" in file ${filename}`);
+      return NextResponse.json(
+        { success: false, message: 'Upload blocked due to inappropriate content.' },
+        { status: 400 }
+      );
+    }
 
     // OAuth2 authentication with refresh token
     const clientId = process.env.GOOGLE_CLIENT_ID;

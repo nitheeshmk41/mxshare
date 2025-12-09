@@ -22,22 +22,27 @@ export async function GET() {
   // 2. Fetch "New File" Activity (Global)
   // We'll just get the last 5 files uploaded by OTHERS
   const recentFiles = await Files.find({
-    userEmail: { $ne: session.user.email } // Don't notify about own files
+    authorEmail: { $ne: session.user.email } // Don't notify about own files
   })
   .sort({ createdAt: -1 })
   .limit(5)
-  .select("title subject userEmail createdAt")
+  .select("title subject semester author authorEmail createdAt")
   .lean();
 
   // Transform files into notification-like objects
-  const fileNotifications = recentFiles.map((f: any) => ({
-    _id: f._id,
-    type: "new_file",
-    message: `${f.userEmail?.split('@')[0] || 'Someone'} added new file "${f.title}"`,
-    createdAt: f.createdAt,
-    read: false, // Always show as "new" in the list until clicked? Or just list them.
-    link: `/file/${f._id}`
-  }));
+  const fileNotifications = recentFiles.map((f: any) => {
+    const who = f.authorEmail?.split("@")[0] || f.author || "Someone";
+    const subj = f.subject ? ` · ${f.subject}` : "";
+    const sem = f.semester ? ` · ${f.semester}` : "";
+    return {
+      _id: f._id,
+      type: "new_file",
+      message: `${who} shared "${f.title}"${subj}${sem}`,
+      createdAt: f.createdAt,
+      read: false,
+      link: `/file/${f._id}`,
+    };
+  });
 
   // Merge and sort
   const all = [...personal, ...fileNotifications].sort((a: any, b: any) => 

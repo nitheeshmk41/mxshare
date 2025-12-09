@@ -82,13 +82,67 @@ import Users from "@/lib/models/User";
 import Notification from "@/lib/models/Notification";
 
 const ADMIN_EMAIL = "25mx336@psgtech.ac.in";
+const BANNED_KEYWORDS = ["sex", "porn", "xxx", "18+", "nsfw", "nude", "erotic", "adult", "hardcore", "rape"];
+const BANNED_DOMAINS = ["xnxx", "xvideos", "pornhub", "redtube", "xhamster", "onlyfans", "brazzers", "porn"];
+
+function containsBanned(text: string) {
+  const lower = text.toLowerCase();
+  return BANNED_KEYWORDS.some((word) => lower.includes(word));
+}
+
+function isBannedDomain(link: string) {
+  try {
+    const url = new URL(link);
+    const host = url.hostname.toLowerCase();
+    return BANNED_DOMAINS.some((d) => host.includes(d));
+  } catch {
+    return false;
+  }
+}
+
+async function sendNotification(recipientEmail: string, message: string, type: "warning" | "info" = "info") {
+  if (!recipientEmail) return;
+  try {
+    await Notification.create({ recipientEmail, message, type });
+  } catch (err) {
+    console.error("Notification error", err);
+  }
+}
+
+function ensureHttp(link: string) {
+  return /^https?:\/\//i.test(link);
+}
+
+function buildLinkArray(linkInput: any) {
+  if (!linkInput) return [] as string[];
+  if (Array.isArray(linkInput)) return linkInput.map((l) => String(l).trim()).filter(Boolean);
+  if (typeof linkInput === "string") {
+    return linkInput
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+  }
+  return [] as string[];
+}
+
+function validateLinks(links: string[]) {
+  for (const link of links) {
+    if (!ensureHttp(link)) {
+      return "Each link must start with http:// or https://";
+    }
+    if (containsBanned(link) || isBannedDomain(link)) {
+      return "Link blocked due to inappropriate content.";
+    }
+  }
+  return null;
+}
 
 export async function DELETE(req: Request, context: any) {
   try {
     const session = await getServerSession(authConfig as any);
     const userRole = (session as any)?.user?.role;
-    
-    if (!session || userRole !== "admin") {
+    const userEmail = (session as any)?.user?.email as string | undefined;
+    if (!session) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
     }
 
@@ -104,37 +158,110 @@ export async function DELETE(req: Request, context: any) {
       return NextResponse.json({ success: false, message: "File not found" }, { status: 404 });
     }
 
+    const ownerEmail = (file as any).authorEmail || (file as any).userEmail || "";
+
+    const isOwner = ownerEmail && ownerEmail === userEmail;
+    const isAdmin = userRole === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
     // Handle User Warning & Blocking
-    if (file.userEmail) {
-      const user = await Users.findOne({ email: file.userEmail });
+    if (isAdmin && ownerEmail) {
+      const user = await Users.findOne({ email: ownerEmail });
       if (user) {
         user.warnings = (user.warnings || 0) + 1;
-        
+
         let notifMessage = `Admin removed your file "${file.title}". Warning ${user.warnings}/3.`;
-        
+
         if (user.warnings >= 3) {
           const blockDays = 5;
           const blockUntil = new Date();
           blockUntil.setDate(blockUntil.getDate() + blockDays);
           user.blockedUntil = blockUntil;
-          user.warnings = 0; // Reset warnings after block? Or keep them? Usually reset or keep accumulating. Let's reset for this cycle.
+          user.warnings = 0; // reset for next cycle
           notifMessage += ` You have been blocked for ${blockDays} days due to multiple violations.`;
         }
 
         await user.save();
-
-        // Send Notification
-        await Notification.create({
-          recipientEmail: file.userEmail,
-          message: notifMessage,
-          type: "warning"
-        });
+        await sendNotification(ownerEmail, notifMessage, "warning");
       }
     }
 
     await Files.findByIdAndDelete(id);
 
-    return NextResponse.json({ success: true, message: "File deleted and user warned" });
+    const selfDeleteMessage = `Your file "${file.title}" was deleted${isAdmin ? " by an admin" : ""}.`;
+    if (ownerEmail) {
+      await sendNotification(ownerEmail, selfDeleteMessage, isAdmin ? "warning" : "info");
+    }
+
+    return NextResponse.json({ success: true, message: "File deleted" });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, message: err.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request, context: any) {
+  try {
+    const session = await getServerSession(authConfig as any);
+    const userEmail = (session as any)?.user?.email as string | undefined;
+    if (!session || !userEmail) {
+      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
+    }
+
+    const rawParams = context?.params;
+    const params = rawParams && typeof rawParams.then === "function" ? await rawParams : rawParams;
+    const id: string | undefined = params?.id;
+    if (!id) return NextResponse.json({ success: false, message: "ID required" }, { status: 400 });
+
+    await db();
+    const file = await Files.findById(id);
+    if (!file) return NextResponse.json({ success: false, message: "File not found" }, { status: 404 });
+
+    const ownerEmail = (file as any).authorEmail || (file as any).userEmail || "";
+    if (ownerEmail !== userEmail) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await req.json();
+
+    const updates: Record<string, any> = {};
+
+    if (typeof body.title === "string") {
+      const trimmed = body.title.trim();
+      if (!trimmed) return NextResponse.json({ success: false, message: "Title cannot be empty" }, { status: 400 });
+      updates.title = trimmed;
+    }
+
+    if (typeof body.driveUrl === "string") {
+      const trimmed = body.driveUrl.trim();
+      if (!ensureHttp(trimmed)) {
+        return NextResponse.json({ success: false, message: "Drive link must start with http:// or https://" }, { status: 400 });
+      }
+      updates.driveUrl = trimmed;
+    }
+
+    const links = buildLinkArray(body.resourceLinks);
+    if (links.length) {
+      const err = validateLinks(links);
+      if (err) return NextResponse.json({ success: false, message: err }, { status: 400 });
+      updates.resourceLinks = links;
+    }
+
+    // Content safety check across updated fields
+    const textBlob = [updates.title, updates.driveUrl, links.join(" ")].filter(Boolean).join(" ");
+    if (textBlob && containsBanned(textBlob)) {
+      await sendNotification(ADMIN_EMAIL, `Blocked edit with banned content on file ${file.title}`);
+      return NextResponse.json({ success: false, message: "Update blocked due to inappropriate content." }, { status: 400 });
+    }
+
+    Object.assign(file, updates);
+    await file.save();
+
+    await sendNotification(ownerEmail, `Your file "${file.title}" details were updated successfully.`, "info");
+
+    return NextResponse.json({ success: true, data: file });
   } catch (err: any) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
